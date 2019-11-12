@@ -1,0 +1,89 @@
+---
+title: "Predicting the manner of exercise"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = FALSE)
+rm(list = ls())
+```
+
+## Executive Summary
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+The goal of is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+
+## Data Definition
+
+The training data for this project are downloaded from: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are downloaded from: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har.
+
+It is worth citing Groupware@LES for being generous in allowing their data to be used for this assignment.
+
+## Data Preparation
+
+```{r dataprep}
+library(caret)
+library(rpart)
+library(knitr)
+library(randomForest)
+set.seed(1234)
+
+trainFile <- "./data/pml-training.csv"
+testFile  <- "./data/pml-testing.csv"
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", destfile=trainFile)
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", destfile=testFile)
+train <- read.csv("./data/pml-training.csv",header=T,sep=",",na.strings=c("NA",""))
+test <- read.csv("./data/pml-testing.csv",header=T,sep=",",na.strings=c("NA",""))
+```
+
+## Data Dimension
+```{r summary, echo=TRUE}
+dim(train)
+```
+## Data Exploration
+```{r cleaning, echo=TRUE}
+train <- train[,-(1:5)] # Remove identifier predictors
+test <- test[,-(1:5)] # Remove identifier predictors
+nzv_var <- nearZeroVar(train) # Remove near zero variance predictors
+train <- train[, -nzv_var]
+test <- test[, -nzv_var]
+KeepTrain <- c((colSums(!is.na(train[,-ncol(train)])) >= nrow(train))) # Remove predictors with NA
+train   <-  train[,KeepTrain]
+KeepTest <- c((colSums(!is.na(test[,-ncol(test)])) >= nrow(test))) # Remove predictors with NA
+test <- test[,KeepTest]
+```
+## Data Partitioning
+```{r partitioning, echo=TRUE}
+inTrain = createDataPartition(train$classe, p=0.70, list=F)
+finalTrain = train[inTrain,]
+finalValidating = train[-inTrain,]
+```
+## Final Training Data
+```{r final data, echo=TRUE}
+dim(finalTrain)
+```
+
+## Modeling with Random Forest
+```{r Modeling, echo=TRUE}
+model <- randomForest(classe~.,data=finalTrain)
+model
+```
+
+## Confusion Matrix using validation data
+```{r valdating, echo=TRUE}
+CM_Validation <- confusionMatrix(predict(model,newdata=finalValidating),finalValidating$classe)
+CM_Validation
+```
+
+## Predict using test data
+```{r predict, echo=TRUE}
+predictTest <- predict(model, newdata=test)
+predictTest
+```
